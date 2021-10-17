@@ -24,4 +24,18 @@ fn main() {
 
 fn transpile_y_file(y_file string, out_file string) {
 	println(y_file)
+
+	y_file_contents := os.read_file(y_file) or { panic(err) }
+	# asdasda ()
+
+	// read file
+	// split file int separate declarations
+	// call declaration transpile method
+}
+
+
+fn transpile_y_declaration(y_declaration string, out_file string) {
+	// tokenize declaration
+	// parse declaration and create abstract syntax tree (ast)
+	// walk ast to make transpiled file
 }
