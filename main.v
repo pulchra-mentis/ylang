@@ -1,13 +1,12 @@
 import os
-import nedpals.vargs
 
 fn main() {
-	mut args := vargs.new(os.args, 1)
-	args.parse() 
-
-	if("d" in args.options){
-
+	mut base_directory := "."
+	if os.args.len >= 2 {
+		base_directory = os.args[1]
 	}
 
-	println(args.options['d'])
+	y_files := os.walk_ext(base_directory, '.y')
+
+	println(y_files)
 }
