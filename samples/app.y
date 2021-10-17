@@ -3,3 +3,8 @@
 (
     ((2 3) min prt) 
 start def)
+
+# `max`: `int` -- returns the max value
+# `a`: `par`: `int` -- right-most value
+# `b`: `par`: `int` -- left-most value
+((b a (b a mor) ter) max def)
