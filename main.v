@@ -26,8 +26,9 @@ fn transpile_y_file(y_file string, out_file string) {
 	println(y_file)
 
 	y_file_contents := os.read_file(y_file) or { panic(err) }
-
-	mut re := regex.regex_opt('your aweseome regex here') or { panic(err) }
+	
+	
+	mut re := regex.regex_opt('#.+?\n\s*\([^#]+\)') or { panic(err) }
 
 	# asdasda ()
 
