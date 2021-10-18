@@ -1,4 +1,5 @@
 import os
+import pcre
 
 fn main() {
 	mut base_directory := "."
@@ -11,7 +12,7 @@ fn main() {
 	generated_file_name := 'app.v'
 	// create empty file
 	if os.exists(generated_file_name) {
-		panic('generated file already exists')
+		//panic('generated file already exists')
 	}
 	mut f := os.create(generated_file_name) or { panic(err) }
 	f.close()
@@ -27,13 +28,22 @@ fn transpile_y_file(y_file string, out_file string) {
 
 	y_file_contents := os.read_file(y_file) or { panic(err) }
 	
+	r := pcre.new_regex(r'#(.|\n)+?\n\s*\([^#]+\)', 6) or { panic(err) }
+
+	mut file_index := 0
+	for {
+		trimmed_file_contents := y_file_contents[file_index..]
+		matches := r.match_str(trimmed_file_contents, 6, 0) or { return }
+
+		declaration := matches.get(0) or { break }
+		file_index += trimmed_file_contents.index(declaration) or { panic(err) } + declaration.len
+
+		println('found: $declaration\n')
 	
-	mut re := regex.regex_opt('#.+?\n\s*\([^#]+\)') or { panic(err) }
+	}
 
-	# asdasda ()
+	r.free()
 
-	// read file
-	// split file int separate declarations
 	// call declaration transpile method
 }
 
