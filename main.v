@@ -49,15 +49,222 @@ fn transpile_y_declaration(y_declaration string, out_file string) {
 	println('transpiling: $y_declaration')
 
 	token_stream := tokenize_y_declaration(y_declaration)
-	println(token_stream)
+	root_node, _ := parse_y_declaration(token_stream)
 
-	// tokenize declaration
-	// parse declaration and create abstract syntax tree (ast)
-	// walk ast to make transpiled file
+	println(root_node)
+	// walk ast to make a transpiled program
+
 	println('finished transpiling\n')
 }
 
+struct YFunctionDeclarationNode {
+	header YFunctionHeaderDeclarationNode
+	parameter_list YFunctionParameterDeclarationListNode
+	body YFunctionBodyDeclarationNode
+}
+
+struct YFunctionHeaderDeclarationNode {
+	fn_name string
+	fn_type string
+}
+
+struct YFunctionParameterDeclarationListNode {
+	parameters []YFunctionParameterDeclarationNode
+}
+
+struct YFunctionParameterDeclarationNode {
+	par_name string
+	par_type string
+}
+
+struct YFunctionBodyDeclarationNode {
+	expression YExpression
+}
+
+enum YExpressionKind {
+	literal
+	fn_call
+}
+
+struct YExpression {
+mut:
+	kind YExpressionKind
+	fn_call YFunctionCallNode
+	literal YLiteral
+}
+
+struct YFunctionCallNode {
+	fn_name string
+	arguments []YExpression
+}
+
+struct YLiteral {
+	token YToken
+}
+
+fn parse_y_declaration(token_stream []YToken) (YFunctionDeclarationNode, int) {
+	mut consumed := 0
+
+	header, consumed_header := parse_y_function_header(token_stream)
+	consumed += consumed_header
+
+	parameter_list, consumed_param_list := parse_y_function_parameter_list(token_stream[consumed..])
+	consumed += consumed_param_list
+
+	for token_stream[consumed].kind == .doc_comment {
+		consumed++
+	}
+
+	body, consumed_body := parse_y_function_body(token_stream[consumed..].reverse())
+	consumed += consumed_body
+
+	return YFunctionDeclarationNode {
+		header: header
+		parameter_list: parameter_list
+		body: body
+	}, consumed
+}
+
+fn parse_y_function_header(token_stream []YToken) (YFunctionHeaderDeclarationNode, int) {
+	mut consumed := 0
+
+	ensure_token(token_stream[consumed], .doc_identifier)
+	fn_name := extract_doc_name_or_type(token_stream[consumed].text[1..])
+	consumed++
+
+	ensure_token(token_stream[consumed], .doc_colon)
+	consumed++
+
+	ensure_token(token_stream[consumed], .doc_type)
+	fn_type := extract_doc_name_or_type(token_stream[consumed].text)
+	consumed++
+
+	ensure_token(token_stream[consumed], .doc_double_dash_comment)
+	consumed++
+	
+	return YFunctionHeaderDeclarationNode{
+		fn_name: fn_name
+		fn_type: fn_type
+	}, consumed
+}
+
+fn parse_y_function_parameter_list(token_stream []YToken) (YFunctionParameterDeclarationListNode, int) {
+	mut consumed := 0
+	mut parameters := []YFunctionParameterDeclarationNode{}
+
+	for token_stream[consumed].kind == .doc_identifier {
+		par_name := extract_doc_name_or_type(token_stream[consumed].text)
+		consumed++
+
+		ensure_token(token_stream[consumed], .doc_colon)
+		consumed++
+
+		ensure_token(token_stream[consumed], .doc_type)
+		par_type := extract_doc_name_or_type(token_stream[consumed].text)
+		consumed++
+
+		ensure_token(token_stream[consumed], .doc_double_dash_comment)
+		consumed++
+
+		parameters << YFunctionParameterDeclarationNode {
+			par_name: par_name
+			par_type: par_type
+		}
+	}
+
+	return YFunctionParameterDeclarationListNode {
+		parameters: parameters
+	}, consumed
+}
+
+fn parse_y_function_body(token_stream []YToken) (YFunctionBodyDeclarationNode, int) {
+	mut consumed := 0
+
+	expression, expression_consumed := parse_y_expression(token_stream)
+	consumed += expression_consumed
+
+	return YFunctionBodyDeclarationNode {
+		expression: expression
+	}, consumed
+}
+
+fn parse_y_expression(token_stream []YToken) (YExpression, int) {
+	mut consumed := 0
+
+	mut expression := YExpression{
+	}
+
+	if token_stream[consumed].kind == .par_open {
+		fn_call, fn_call_consumed := parse_y_function_call(token_stream[consumed..])
+		consumed += fn_call_consumed
+
+		expression.kind = .fn_call
+		expression.fn_call = fn_call
+	} else {
+		literal, literal_consumed := parse_y_literal(token_stream[consumed..])
+		consumed += literal_consumed
+
+		expression.kind = .literal
+		expression.literal = literal
+	}
+
+	return expression, consumed
+}
+
+fn parse_y_function_call(token_stream []YToken) (YFunctionCallNode, int) {
+	mut consumed := 0
+
+	ensure_token(token_stream[consumed], .par_open)
+	consumed++
+
+	ensure_token(token_stream[consumed], .identifier)
+	fn_name := token_stream[consumed].text
+	consumed++
+
+	mut arguments := []YExpression{}
+	for token_stream[consumed].kind != .par_close {
+		argument, argument_consumed := parse_y_expression(token_stream[consumed..])
+		arguments << argument
+		consumed += argument_consumed
+	}
+
+	ensure_token(token_stream[consumed], .par_close)
+	consumed++
+
+	return YFunctionCallNode {
+		fn_name: fn_name
+		arguments: arguments
+	}, consumed
+}
+
+fn parse_y_literal(token_stream []YToken) (YLiteral, int) {
+	is_literal := match token_stream[0].kind {
+		.int_literal,  .double_literal, .string_literal, .bool_literal, .identifier { true }
+		else { false }
+	}
+
+	if !is_literal {
+		panic('expected literal token but got ${token_stream[0]}')
+	}
+
+	return YLiteral {
+		token: token_stream[0]
+	}, 1
+}
+
+fn ensure_token(token YToken, kind YTokenKind) {
+	if token.kind != kind {
+		panic('unexpected token kind ${token.kind}, expected $kind')
+	}
+}
+
+fn extract_doc_name_or_type(raw string) string {
+	return raw.trim('#').trim(' ').trim('`').trim('`')
+}
+
 enum YTokenKind {
+	undefined
+
 	doc_identifier
 	doc_type
 	doc_colon
@@ -182,7 +389,7 @@ fn tokenize_identifier(input string) ?YToken {
 }
 
 fn tokenize_white_space(input string) ?YToken {
-	return tokenize_pattern(input, r'\s', .white_space, false)
+	return tokenize_pattern(input, r'\s', .white_space, true)
 }
 	
 fn tokenize_new_line(input string) ?YToken {
