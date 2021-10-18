@@ -50,11 +50,14 @@ fn transpile_y_declaration(y_declaration string, out_file string) {
 
 	token_stream := tokenize_y_declaration(y_declaration)
 	root_node, _ := parse_y_declaration(token_stream)
-
-	println(root_node)
+	code := transpile_ast(root_node)
 	// walk ast to make a transpiled program
 
 	println('finished transpiling\n')
+}
+
+fn transpile_ast(root_node YFunctionBodyDeclarationNode) string {
+	// todo: implement code generation
 }
 
 struct YFunctionDeclarationNode {
