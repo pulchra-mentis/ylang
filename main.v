@@ -60,20 +60,52 @@ fn transpile_y_declaration(y_declaration string, out_file string) {
 fn transpile_ast(root_node YFunctionDeclarationNode) string {
 	mut sb := strings.new_builder(1024)
 
-	transpile_header(root_node, mut sb)
-	transpile_body(root_node.body, mut sb)
-	sb.write_string('}\n\n')
+	is_main := transpile_header(root_node, mut sb)
+	transpile_body(root_node.body, mut sb, is_main)
+	sb.write_string('\n}\n\n')
 	
 	return sb.str()
 }
 
-fn transpile_body(body YFunctionBodyDeclarationNode, mut sb strings.Builder) {
-	
+fn transpile_body(body YFunctionBodyDeclarationNode, mut sb strings.Builder, is_main bool) {
+	if !is_main {
+		sb.write_string('return ')
+	}
+	transpile_expression(body.expression, mut sb)
 }
 
-fn transpile_header(root_node YFunctionDeclarationNode, mut sb strings.Builder) {
+fn transpile_expression(expression YExpression, mut sb strings.Builder) {
+	if expression.kind == .fn_call {
+		transpile_fn_call(expression.fn_call, mut sb)
+	} else {
+		transpile_literal(expression.literal, mut sb)
+	}
+}
+
+fn transpile_fn_call(fn_call YFunctionCallNode, mut sb strings.Builder) {
+	sb.write_string('${fn_call.fn_name}(')
+	mut count := 0
+	for count < fn_call.arguments.len {
+		transpile_expression(fn_call.arguments[count], mut sb)
+
+		if count+1 < fn_call.arguments.len {
+			sb.write_string(', ')
+		}
+		count ++
+	}
+	sb.write_string(')')
+}
+
+fn transpile_literal(literal YLiteral, mut sb strings.Builder) {
+	sb.write_string(literal.token.text)
+}
+
+fn transpile_header(root_node YFunctionDeclarationNode, mut sb strings.Builder) bool {
 	sb.write_string('fn ')
-	if root_node.header.fn_type == 'app' {
+
+	is_main := root_node.header.fn_type == 'app'
+
+	if is_main {
 		sb.write_string('main')
 	}else{
 		sb.write_string(root_node.header.fn_name)
@@ -86,12 +118,13 @@ fn transpile_header(root_node YFunctionDeclarationNode, mut sb strings.Builder) 
 
 	sb.write_string(')')
 
-	if root_node.header.fn_type != 'app' {
+	if !is_main {
 		sb.write_string(' ')
 		sb.write_string(translate_type(root_node.header.fn_type))
 	}
 
 	sb.write_string(' {\n')
+	return is_main
 }
 
 fn translate_type(type_name string) string {
