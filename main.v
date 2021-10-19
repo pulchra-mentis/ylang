@@ -1,6 +1,7 @@
 import os
 import pcre
 import regex
+import strings
 
 fn main() {
 	mut base_directory := "."
@@ -51,13 +52,56 @@ fn transpile_y_declaration(y_declaration string, out_file string) {
 	token_stream := tokenize_y_declaration(y_declaration)
 	root_node, _ := parse_y_declaration(token_stream)
 	code := transpile_ast(root_node)
-	// walk ast to make a transpiled program
+	println(code)
 
 	println('finished transpiling\n')
 }
 
-fn transpile_ast(root_node YFunctionBodyDeclarationNode) string {
-	// todo: implement code generation
+fn transpile_ast(root_node YFunctionDeclarationNode) string {
+	mut sb := strings.new_builder(1024)
+
+	transpile_header(root_node, mut sb)
+	transpile_body(root_node.body, mut sb)
+	sb.write_string('}\n\n')
+	
+	return sb.str()
+}
+
+fn transpile_body(body YFunctionBodyDeclarationNode, mut sb strings.Builder) {
+	
+}
+
+fn transpile_header(root_node YFunctionDeclarationNode, mut sb strings.Builder) {
+	sb.write_string('fn ')
+	if root_node.header.fn_type == 'app' {
+		sb.write_string('main')
+	}else{
+		sb.write_string(root_node.header.fn_name)
+	}
+	sb.write_string('(')
+
+	params := root_node.parameter_list.parameters
+		.map('$it.par_name ${translate_type(it.par_type)}')
+	sb.write_string(params.join(', '))
+
+	sb.write_string(')')
+
+	if root_node.header.fn_type != 'app' {
+		sb.write_string(' ')
+		sb.write_string(translate_type(root_node.header.fn_type))
+	}
+
+	sb.write_string(' {\n')
+}
+
+fn translate_type(type_name string) string {
+	return match type_name {
+		'int' { 'int' }
+		'str' { 'string' }
+		'dbl' { 'f64' }
+		'bol' { 'bool' }
+		else { panic('cannot translate unknown type "$type_name"') }
+	}
 }
 
 struct YFunctionDeclarationNode {
